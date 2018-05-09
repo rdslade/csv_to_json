@@ -146,6 +146,7 @@ public:
 	  //devices array is good enough for that b/c no repeat devices
 	  //potential repeats for datasets; set up as map
 	  unsigned int datasetCounter = 0;
+    unsigned int mapCounter = 0;
 	  using Pair_type = pair<int, vector<Map>>;
 	  map<string, Pair_type> dataS;
 
@@ -222,7 +223,7 @@ public:
         else{
           json << "," << endl;
         }
-		      json << "        \"" << setw(4) << setfill('0') << decToHex(it->second.first, 4) << "\"";
+		      json << "        \"" << setw(4) << setfill('0') << decToHex(++mapCounter, 4) << "\"";
       }
 		  json << endl << "      " << "]" << endl;
 		  json << "    " << "}";
@@ -231,7 +232,7 @@ public:
 	  json << endl << "  ]," << endl;
 	  json << "  " << "\"maps\": [" << endl;
 	  stillFirst = true;
-	  int mapCounter = 0;
+	  int mCounter = 0;
 	  for (auto it = sortedSet.begin(); it != sortedSet.end(); ++it) {
 		  if (stillFirst) {
 			  stillFirst = false;
@@ -241,7 +242,7 @@ public:
 		  }
       vector<Map> allMaps = it->second.second;
       for(unsigned int i = 0; i < allMaps.size(); ++i){
-        json << allMaps[i].toJSON(++mapCounter);
+        json << allMaps[i].toJSON(++mCounter);
       }
 	  }
 	  json << endl << "  ]";
