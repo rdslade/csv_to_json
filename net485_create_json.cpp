@@ -28,6 +28,12 @@ string decToHex(int decimal_value, int length) {
 	return hexS;
 }
 
+bool isOneMore(string a, string b){
+  int a_i = stoi(a, nullptr, 16);
+  int b_i = stoi(b, nullptr, 16);
+  return a_i == b_i + 1;
+}
+
 class Map{
 public:
 	Map(bool read, string type, string start, int num_in)
@@ -60,8 +66,8 @@ public:
   string getName(){
     return name;
   }
-  Map getMap() {
-	  return maps[0];
+  vector<Map> getMap() {
+	  return maps;
   }
   void addMap(Map * map_in) {
 	  maps.push_back(*map_in);
@@ -140,7 +146,8 @@ public:
 	  //devices array is good enough for that b/c no repeat devices
 	  //potential repeats for datasets; set up as map
 	  unsigned int datasetCounter = 0;
-	  using Pair_type = pair<int, Map>;
+    unsigned int mapCounter = 0;
+	  using Pair_type = pair<int, vector<Map>>;
 	  map<string, Pair_type> dataS;
 
 	  for (unsigned int i = 0; i < devices.size(); ++i) {
@@ -206,16 +213,26 @@ public:
 		  json << "    " << "{" << endl;
 		  json << "      " << "\"id\": \"" << setw(4) << setfill('0') << decToHex(it->second.first, 4) << "\"," << endl;
 		  json << "      " << "\"dataname\": \"" << removeFirstSpace(it->first) << "\"," << endl;
-		  json << "      " << "\"mappings\": [";
-		  json << endl <<  "        \"" << setw(4) << setfill('0') << decToHex(it->second.first, 4) << "\"" << endl;
-		  json << "      " << "]" << endl;
+		  json << "      " << "\"mappings\": [" << endl;
+      vector<Map> allMaps = it->second.second;
+      stillFirst = true;
+      for(unsigned int i = 0; i < allMaps.size(); ++i){
+        if(stillFirst){
+          stillFirst = false;
+        }
+        else{
+          json << "," << endl;
+        }
+		      json << "        \"" << setw(4) << setfill('0') << decToHex(++mapCounter, 4) << "\"";
+      }
+		  json << endl << "      " << "]" << endl;
 		  json << "    " << "}";
 
 	  }
 	  json << endl << "  ]," << endl;
 	  json << "  " << "\"maps\": [" << endl;
 	  stillFirst = true;
-	  int mapCounter = 0;
+	  int mCounter = 0;
 	  for (auto it = sortedSet.begin(); it != sortedSet.end(); ++it) {
 		  if (stillFirst) {
 			  stillFirst = false;
@@ -223,8 +240,10 @@ public:
 		  else {
 			  json << "," << endl;
 		  }
-		  Map tempMap = it->second.second;
-		  json << tempMap.toJSON(++mapCounter);
+      vector<Map> allMaps = it->second.second;
+      for(unsigned int i = 0; i < allMaps.size(); ++i){
+        json << allMaps[i].toJSON(++mCounter);
+      }
 	  }
 	  json << endl << "  ]";
 	  json << endl << "}" << endl;
@@ -257,19 +276,17 @@ private:
           if(splitDatumName.size() >= 2){ //if the column has an equal sign, then it is of interest
             DataSet * data = new DataSet(splitDatumName[1]);
             d.addDataset(data);
-            setMapping(csvin2, data, d);
+            setMappings(csvin2, data, d);
           }
         }
       }
     }
   }
 
-  void setMapping(csvstream & csv, DataSet * data, Device & dev){
-    bool read = false;
-    string type, start;
-	int numElements;
+  void setMappings(csvstream & csv, DataSet * data, Device & dev){
     map<string, string> row;
     csv >> row;
+    bool read = false;
     for(auto col : row){
       if(col.first == "Device Name =" + dev.getName()){
         read = (col.second.find("Read") != string::npos) ? true : false;
@@ -278,20 +295,37 @@ private:
     }
     csv >> row >> row;
     for(auto col = row.begin(); col != row.end(); ++col){
-	  string deviceHeader = "Device Name =" + dev.getName();
+	    string deviceHeader = "Device Name =" + dev.getName();
       if(col->first == deviceHeader){
+        string type, start;
         type = col->second;
-		string addressHeader = "Address" + dev.getName();
-		start = row[addressHeader];
-		numElements = 1;
-		while (csv >> row && row[deviceHeader] != "") {
-			++numElements;
-		}
-		break;
+		    string addressHeader = "Address" + dev.getName();
+        start = row[addressHeader];
+        //start of tracking this mapping
+    	  int numElements = 1;
+        string curAddress = start;
+		    while (csv >> row && row[deviceHeader] != "") {
+          string nextAddress = row[addressHeader];
+          if(isOneMore(nextAddress, curAddress)){
+    			     ++numElements;
+          }
+          else{
+            //detected new mapping
+            //finish setting current mapping
+            data->addMap(new Map(read, type, start, numElements));
+            //move onto next mapping
+            start = nextAddress;
+            type = row[deviceHeader];
+            numElements = 1;
+            //TODO how to detect which elements are reads vs writes?
+          }
+          curAddress = nextAddress;
+		    }
+        data->addMap(new Map(read, type, start, numElements));
+		    break;
       }
     }
 	//add map to given dataset
-	data->addMap(new Map(read, type, start, numElements));
   }
 };
 
