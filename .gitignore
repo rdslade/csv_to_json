@@ -4,7 +4,8 @@
 #
 # A .gitignore file will tell git which files and directories to ignore and
 # not add to version control.
-
+*.json
+*.csv
 # Executables and debug files
 main
 *.exe
