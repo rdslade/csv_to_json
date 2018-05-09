@@ -66,8 +66,8 @@ public:
   string getName(){
     return name;
   }
-  Map getMap() {
-	  return maps[0];
+  vector<Map> getMap() {
+	  return maps;
   }
   void addMap(Map * map_in) {
 	  maps.push_back(*map_in);
@@ -146,7 +146,7 @@ public:
 	  //devices array is good enough for that b/c no repeat devices
 	  //potential repeats for datasets; set up as map
 	  unsigned int datasetCounter = 0;
-	  using Pair_type = pair<int, Map>;
+	  using Pair_type = pair<int, vector<Map>>;
 	  map<string, Pair_type> dataS;
 
 	  for (unsigned int i = 0; i < devices.size(); ++i) {
@@ -212,9 +212,19 @@ public:
 		  json << "    " << "{" << endl;
 		  json << "      " << "\"id\": \"" << setw(4) << setfill('0') << decToHex(it->second.first, 4) << "\"," << endl;
 		  json << "      " << "\"dataname\": \"" << removeFirstSpace(it->first) << "\"," << endl;
-		  json << "      " << "\"mappings\": [";
-		  json << endl <<  "        \"" << setw(4) << setfill('0') << decToHex(it->second.first, 4) << "\"" << endl;
-		  json << "      " << "]" << endl;
+		  json << "      " << "\"mappings\": [" << endl;
+      vector<Map> allMaps = it->second.second;
+      stillFirst = true;
+      for(unsigned int i = 0; i < allMaps.size(); ++i){
+        if(stillFirst){
+          stillFirst = false;
+        }
+        else{
+          json << "," << endl;
+        }
+		      json << "        \"" << setw(4) << setfill('0') << decToHex(it->second.first, 4) << "\"";
+      }
+		  json << endl << "      " << "]" << endl;
 		  json << "    " << "}";
 
 	  }
@@ -229,8 +239,10 @@ public:
 		  else {
 			  json << "," << endl;
 		  }
-		  Map tempMap = it->second.second;
-		  json << tempMap.toJSON(++mapCounter);
+      vector<Map> allMaps = it->second.second;
+      for(unsigned int i = 0; i < allMaps.size(); ++i){
+        json << allMaps[i].toJSON(++mapCounter);
+      }
 	  }
 	  json << endl << "  ]";
 	  json << endl << "}" << endl;
@@ -300,7 +312,10 @@ private:
             //detected new mapping
             //finish setting current mapping
             data->addMap(new Map(read, type, start, numElements));
-            //TODO move onto next mapping
+            //move onto next mapping
+            start = nextAddress;
+            type = row[deviceHeader];
+            numElements = 1;
             //TODO how to detect which elements are reads vs writes?
           }
           curAddress = nextAddress;
