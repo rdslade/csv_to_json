@@ -28,6 +28,12 @@ string decToHex(int decimal_value, int length) {
 	return hexS;
 }
 
+bool isOneMore(string a, string b){
+  int a_i = stoi(a, nullptr, 16);
+  int b_i = stoi(b, nullptr, 16);
+  return a_i == b_i + 1;
+}
+
 class Map{
 public:
 	Map(bool read, string type, string start, int num_in)
@@ -283,16 +289,21 @@ private:
 		    string addressHeader = "Address" + dev.getName();
         start = row[addressHeader];
         //start of tracking this mapping
-    	  int numElements;
-		    numElements = 1;
+    	  int numElements = 1;
         string curAddress = start;
 		    while (csv >> row && row[deviceHeader] != "") {
-          //if we detect a new map:
-          //we need to finish the setting of this map
-          //and then move on to the next map
-          //TODO how to detect which elements of the grouping are reads vs writes?
-          string thisAddress = row[addressHeader];
-    			++numElements;
+          string nextAddress = row[addressHeader];
+          if(isOneMore(nextAddress, curAddress)){
+    			     ++numElements;
+          }
+          else{
+            //detected new mapping
+            //finish setting current mapping
+            data->addMap(new Map(read, type, start, numElements));
+            //TODO move onto next mapping
+            //TODO how to detect which elements are reads vs writes?
+          }
+          curAddress = nextAddress;
 		    }
         data->addMap(new Map(read, type, start, numElements));
 		    break;
